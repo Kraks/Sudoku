@@ -1,4 +1,5 @@
 #lang racket
+
 (define get-col (λ (g i) (map (λ (line) (list-ref line i)) g)))
 
 (define (get-block grid M N row col)

@@ -81,8 +81,7 @@
           [(not (= 0 (grid-get grid row col)))
            (gen-constraints grid (next-row row col) (next-col row col))]
           [else (gen-constraints 
-                  (grid-set grid row col
-                            (amb (get-possible-choices grid row col)))
+                  (grid-set grid row col (amb (get-possible-choices grid row col)))
                   (next-row row col) (next-col row col))]))
   
   (let ([g (gen-constraints grid 0 0)])

@@ -74,7 +74,7 @@
     (if (end? M N row col) grid
         (cond [(Unknown? (grid-get grid row col))
                (aux-update (grid-set grid row col (Unknown (get-possible-choices grid row col)))
-                       (next-row row col) (next-col row col))]
+                           (next-row row col) (next-col row col))]
               [else (aux-update grid (next-row row col) (next-col row col))])))
   (define (update grid) (aux-update grid 0 0))
 
@@ -83,18 +83,18 @@
     (if (end? M N row col) (cdr min)
         (let ([ele (grid-get grid row col)])
           (if (and (Unknown? ele) (<= (length (Unknown-choices ele)) (car min)))
-              (aux-next-row-col grid(next-row row col)(next-col row col)
+              (aux-next-row-col grid (next-row row col) (next-col row col)
                                 `(,(length (Unknown-choices ele)) ,row ,col))
               (aux-next-row-col grid (next-row row col) (next-col row col) min)))))
 
   (define (next-row-col grid)
-    (aux-next-row-col grid 0 0 (list (length all-possible-choices) -1 -1)))
+    (aux-next-row-col grid 0 0 `(,(length all-possible-choices) -1 -1)))
 
   (define (aux-solve grid pos back)
     (match pos
-      [`(,row ,col)
-       (if (< row 0) grid
-           (try grid row col (shuffle (Unknown-choices (grid-get grid row col))) back))]))
+      [`(,row ,col) (if (< row 0) grid
+                        (try grid row col
+                             (shuffle (Unknown-choices (grid-get grid row col))) back))]))
 
   (define (try grid row col choices back)
     (if (empty? choices) (back)
@@ -171,7 +171,6 @@
 (define solved (solve grid 3 3))
 solved
 (valid? solved 3 3)
-
 
 ;;;;;;;;;;;;;;;;;;
 
