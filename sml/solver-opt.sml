@@ -4,14 +4,14 @@ Guannan Wei <guannan.wei@utah.edu>
 *)
 
 datatype Box = Just of int | Unknown of int list;
-type Grid = Box list list;
+type Grid = (int * int * Box) list list;
 datatype Result = InComplete of (unit -> Result) list
                 | Success of Grid * ((unit -> Result) list);
 exception NoSolution;
 
-fun gridToString g =
-  let fun aux (Just x) = Int.toString x
-        | aux (Unknown _) = "_"
+fun gridToStr g =
+  let fun aux (_, _, Just x) = Int.toString x
+        | aux (_, _, Unknown _) = "_"
   in (String.concatWith "\n" (map (fn l => (String.concatWith " " (map aux l))) g)) ^ "\n" end;
 
 val len = List.length;
@@ -41,7 +41,7 @@ fun isolate [] = []
 
 fun gridGet g row col = List.nth(List.nth(g, row), col);
 
-fun gridSet g row col ele = update g row (update (List.nth(g, row)) col ele);
+fun gridSet g (row, col, ele) = update g row (update (List.nth(g, row)) col (row, col, ele));
 
 fun getRow g i = List.nth(g, i);
 
@@ -59,7 +59,7 @@ fun eachBlocks g m n =
   in List.concat(map (fn row => map (getBlock g m n row) cols) rows) end;
 
 fun getUsedNums [] = []
-  | getUsedNums ((Just x)::xs) = x::(getUsedNums xs)
+  | getUsedNums ((_, _, Just x)::xs) = x::(getUsedNums xs)
   | getUsedNums (_::xs) = getUsedNums xs;
 
 fun getConstraints grid m n row col =
@@ -74,17 +74,17 @@ fun getPossibleNums grid m n row col =
   in removeList con all end;
 
 fun updateGrid grid m n = 
-  let fun updateLine [] _ _ = []
-        | updateLine ((Just x)::xs) row col = (Just x)::(updateLine xs row (col+1))
-        | updateLine ((Unknown _)::xs) row col = 
-            (Unknown (getPossibleNums grid m n row col))::(updateLine xs row (col+1))
-      fun update [] _ = []
-        | update (line::grid) row = (updateLine line row 0)::(update grid (row+1))
-  in update grid 0 end;
+  let fun updateLine [] = []
+        | updateLine ((row, col, Unknown _)::xs) = 
+            (row, col, (Unknown (getPossibleNums grid m n row col)))::(updateLine xs)
+        | updateLine (x::xs) = x::(updateLine xs)
+      fun update [] = []
+        | update (line::grid) = (updateLine line)::(update grid)
+  in update grid end;
 
 fun isValid grid m n = 
   let fun sumOfBox [] = 0
-        | sumOfBox ((Just x)::xs) = x + sumOfBox xs
+        | sumOfBox ((_, _, Just x)::xs) = x + sumOfBox xs
         | sumOfBox (_::xs) = sumOfBox xs
       val sumOfRows = map sumOfBox grid
       val sumOfCols = map sumOfBox (map (getCol grid) (List.tabulate(len(grid), fn x => x)))
@@ -101,20 +101,19 @@ fun gridWithIndex grid =
   in map (fn (row, l) => map (fn (col, x) => (row, col, x)) l) grid end;
 
 fun next grid =
-  let val es = List.concat(gridWithIndex grid)
-      fun aux [] m = m
+  let fun aux [] m = m
         | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), NONE) => aux xs (SOME x)
                                        | ((_, _, Unknown p), SOME(_, _, Unknown p')) => 
                                            if len(p) < len(p') then aux xs (SOME x)
                                            else aux xs m
                                        | (_, _) => aux xs m
-  in aux es NONE end;
+  in aux (List.concat grid) NONE end;
 
 fun solve grid m n x =
   let fun try grid =
         case next grid of NONE => Success(grid, [])
                         | SOME(row, col, Unknown p) =>
-                            InComplete(map (fn c => fn() => try (updateGrid (gridSet grid row col (Just c)) m n)) p)
+                            InComplete(map (fn c => fn() => try (updateGrid (gridSet grid (row, col, Just c)) m n)) p)
 
       fun aux res [] = if len(res) = 0 then raise NoSolution else res
         | aux res (s::ss) = if len(res) = x then res
@@ -130,7 +129,7 @@ fun transform g =
   let fun transLine [] = []
         | transLine (0::xs) = (Unknown [])::transLine xs
         | transLine (x::xs) = (Just x)::transLine xs
-  in map transLine g end;
+  in gridWithIndex(map transLine g) end;
 
 val grid = transform
             [[3,0,6, 5,0,8, 4,0,0],
@@ -160,6 +159,6 @@ val mt = transform
 
 fun generate m n = (solve mt m n 1);
 
-solve grid 3 3 3;
+map (print o gridToStr) (solve grid 3 3 1);
 
-generate 3 3;
+map (print o gridToStr) (generate 3 3);
