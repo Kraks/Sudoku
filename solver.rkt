@@ -45,11 +45,14 @@
 ; Get all used number in a list.
 (define get-used-num (curry filter-map (λ (y) (and (Just? y) (Just-x y)))))
 
+; Get element at (row, col)
 (define (grid-get grid row col) (list-ref (get-row grid row) col))
 
+; Set element at (row, col)
 (define (grid-set grid row col ele)
   (list-set grid row (list-set (list-ref grid row) col ele)))
 
+; Decide if already moved to the last element
 (define (end? M N row col) (and (= (* M N) row) (= 0 col)))
 
 (define (solve grid M N)
@@ -61,6 +64,8 @@
   (define (next-col row col)
     (if (zero? (modulo (add1 col) side-length)) 0
         (add1 col)))
+  
+  ; Get all possible choices for (row, col) on grid
   (define (get-possible-choices grid row col)
     (let ([ele (list-ref (list-ref grid row) col)])
       (cond [(Just? ele) `(,(Just-x ele))]
@@ -70,17 +75,22 @@
                    [blk-cns (get-used-num (get-block grid M N row col))])
                (remv* (remove-duplicates (flatten `(,row-cns ,col-cns ,blk-cns)))
                       all-possible-choices))])))
+
+  ; If the choices is empty, we need to backtrack
+  ; Otherwise, just try the first element of choices and then move to next box
   (define (try grid row col choices back)
     (if (empty? choices) (back)
         (aux-solve (grid-set grid row col (Just (car choices)))
                    (next-row row col) (next-col row col)
                    (λ () (try grid row col (cdr choices) back)))))
+
   (define (aux-solve grid row col back)
     (if (end? M N row col) grid
         (cond [(Just? (grid-get grid row col))
                (aux-solve grid (next-row row col) (next-col row col) back)]
               [else
                (try grid row col (shuffle (get-possible-choices grid row col)) back)])))
+  
   (aux-solve grid 0 0 (λ () (error 'solve "can not solve"))))
 
 ;; Validate
@@ -94,6 +104,7 @@
            (for/list ([col (range 0 (* M N) M)])
              (get-block grid M N row col)))))
 
+; Is the grid satisfies all constraints?
 (define valid?
   (λ (grid M N)
     (define sum-of-justs
@@ -103,9 +114,7 @@
      (map sum-of-justs (transpose grid))
      (map sum-of-justs (each-block grid M N)))))
 
-;;;;;;;;;;;;;;;;;;;
 ; Generator
-;;;;;;;;;;;;;;;;;;;
 
 (define mk-empty-grid
   (λ (n)
@@ -130,9 +139,7 @@
 ;(define g1 (generate 3 3 50))
 ;(define s-g1 (solve g1 3 3))
 
-;;;;;;;;;;;;;;;;;;;
-; Test
-;;;;;;;;;;;;;;;;;;;
+;; Test
 
 (define grid
   (transform
@@ -151,7 +158,6 @@
 solved
 (valid? solved 3 3)
 
-
 ;;;;;;;;;;;;;;;;;;
 
 (define grid2
@@ -167,8 +173,9 @@ solved
 (define solved2 (solve grid2 3 2))
 solved2
 (valid? solved2 3 2)
+
 #|
-;;;;;;;;;;;;;;;;;;;
+;This one will takes 18 minutes!
 
 (define nefarious
   '((0 0 0  0 6 0  0 8 0)
