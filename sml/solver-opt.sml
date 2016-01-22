@@ -6,7 +6,7 @@ Guannan Wei <guannan.wei@utah.edu>
 datatype Box = Just of int | Unknown of int list;
 type Grid = Box list list;
 
-fun range i = List.tabulate(i, fn x => x);
+val len = List.length;
 
 fun update [] i ele = raise Empty
   | update (x::xs) 0 ele = ele::xs
@@ -14,15 +14,17 @@ fun update [] i ele = raise Empty
 
 fun gridGet g row col = List.nth(List.nth(g, row), col);
 
-fun gridUpdate g row col ele = update g row (update (List.nth(g, row)) col ele);
+fun gridSet g row col ele = update g row (update (List.nth(g, row)) col ele);
 
 fun getRow g i = List.nth(g, i);
 
 fun getCol g i = map (fn row => List.nth(row, i)) g;
 
 fun partition step [] = []
-  | partition step xs = if List.length(xs) <= step then [xs]
+  | partition step xs = if len(xs) <= step then [xs]
                         else List.take(xs, step)::(partition step (List.drop(xs, step)))
+
+fun range stop step = List.tabulate(stop div step + 1, fn x => x * step);
 
 fun getBlock g m n row col =
   let fun aux row col = 
@@ -73,27 +75,54 @@ fun updateGrid grid m n =
 exception NoSolution;
 
 fun nextRowCol grid = (1, 1);
-fun isValid grid = true;
+
+fun ternaryEqual x y z = x = y andalso y = z;
+
+fun isValid grid m n = 
+  let
+    fun sumOfBox [] = 0
+      | sumOfBox ((Just x)::xs) = x + sumOfBox xs
+      | sumOfBox (_::xs) = sumOfBox xs
+    val sumOfRows = map sumOfBox grid
+    val sumOfCols = map sumOfBox (map (getCol grid) (List.tabulate(len(grid), fn x => x)))
+    val sumOfBlks = 
+  in ternaryEqual sumOfRows sumOfCols sumOfBlks end;
+
+fun isComplete grid = 
+  let fun aux [] = true
+        | aux ((Just _)::xs) = aux xs
+        | aux (_::xs) = false
+  in foldl (fn (x, acc) => aux x andalso acc) true grid end;
 
 datatype Result = Fail of (unit -> Result) list
+                | InComplete of (unit -> Result) list
                 | Success of Grid * ((unit -> Result) list);
 
 fun solve grid m n x =
   let fun try grid (row, col) =
-        let val choices = getPossibleNums grid m n row col
-            val others = map (fn c => fn () => let val grid = gridUpdate grid row col (Just c) 
-                                               in try grid (nextRowCol grid) end) (tl choices)
-            val grid = gridUpdate grid row col (Just (hd choices))
-        in if isValid grid then Fail(others) else Success(grid, others) end
+        let 
+          val grid = updateGrid grid m n
+          val choices = case gridGet grid row col of Unknown choices => choices | _ => []
+        in if null choices then Fail([])
+           else 
+             let val siblings = map (fn c => fn () => let val grid = gridSet grid row col (Just c) 
+                                                      in try grid (nextRowCol grid) end) (tl choices)
+                 val grid = gridSet grid row col (Just (hd choices))
+             in if isComplete grid then
+                   if isValid grid m n then Success(grid, siblings)
+                   else Fail(siblings)
+                else InComplete((fn () => try grid (nextRowCol grid)) :: siblings)
+             end
+        end
 
-      fun aux res [] = if List.length(res) = 0 then raise NoSolution else res
-        | aux res (s::ss) = if List.length(res) = x then res
+      fun aux res [] = if len(res) = 0 then raise NoSolution else res
+        | aux res (s::ss) = if len(res) = x then res
                             else case s() of 
-                                   Fail others => aux res (others@ss)
+                                   InComplete(others) => aux res (others@ss)
+                                 | Fail(others) => aux res (others@ss)
                                  | Success(grid, others) => aux (grid::res) (others@ss)
 
-  in aux [] [] end;
-
+  in aux [] [fn () => try grid (nextRowCol grid)] end;
 
 (*
 getBlock [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]] 2 2 0 0;
