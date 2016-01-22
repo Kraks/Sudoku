@@ -12,7 +12,7 @@ exception NoSolution;
 fun gridToString g =
   let fun aux (Just x) = Int.toString x
         | aux (Unknown _) = "_"
-  in (String.concatWith "\n" (map (fn (l) => (String.concatWith " " (map aux l))) g)) ^ "\n" end;
+  in (String.concatWith "\n" (map (fn l => (String.concatWith " " (map aux l))) g)) ^ "\n" end;
 
 val len = List.length;
 
@@ -36,12 +36,6 @@ fun removeList [] ys = ys
 
 fun isolate [] = []
   | isolate (x::xs) = x::isolate(remove x xs);
-
-fun min xs f =
-  let fun aux [] i m = m
-        | aux (x::xs) i m = if (f x) < (f (#2 m)) then aux xs (i+1) (i, x)
-                            else aux xs (i+1) m
-  in aux (tl xs) 0 (0, (f (hd xs))) end;
 
 (************************)
 
@@ -97,29 +91,38 @@ fun isValid grid m n =
       val sumOfBlks = map sumOfBox (eachBlocks grid m n)
   in len(isolate(List.concat([sumOfRows, sumOfCols, sumOfBlks]))) = 1 end;
 
-fun nextRowCol grid row col =
-  let val sideLen = len(grid)
-  in if (col+1) = sideLen then (row+1, 0) else (row, col+1) end;
+fun withIndex xs =
+  let fun aux [] _ = []
+        | aux (x::xs) i  = (i, x)::aux xs (i+1)
+  in aux xs 0 end;
 
-fun isEnd m n row col = (m*n) = row andalso (0 = col);
+fun gridWithIndex grid = 
+  let val grid = withIndex (map withIndex grid)
+  in map (fn (row, l) => map (fn (col, x) => (row, col, x)) l) grid end;
+
+fun next grid =
+  let val es = List.concat(gridWithIndex grid)
+      fun aux [] m = m
+        | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), NONE) => aux xs (SOME x)
+                                       | ((_, _, Unknown p), SOME(_, _, Unknown p')) => 
+                                           if len(p) < len(p') then aux xs (SOME x)
+                                           else aux xs m
+                                       | (_, _) => aux xs m
+  in aux es NONE end;
 
 fun solve grid m n x =
-  let fun try grid (row, col) =
-        if isEnd m n row col then Success(grid, [])
-        else let val grid = updateGrid grid m n
-             in case gridGet grid row col of 
-                  Unknown choices => InComplete(map (fn c => fn() => let val grid = gridSet grid row col (Just c)
-                                                                     in try grid (nextRowCol grid row col) end)
-                                                                     choices)
-                | Just _ => InComplete([fn () => try grid (nextRowCol grid row col)])
-             end
+  let fun try grid =
+        case next grid of NONE => Success(grid, [])
+                        | SOME(row, col, Unknown p) =>
+                            InComplete(map (fn c => fn() => try (updateGrid (gridSet grid row col (Just c)) m n)) p)
+
       fun aux res [] = if len(res) = 0 then raise NoSolution else res
         | aux res (s::ss) = if len(res) = x then res
                             else case s() of 
                                    InComplete(others) => aux res (others@ss)
                                  | Success(grid, others) => aux (grid::res) (others@ss)
 
-  in aux [] [fn () => try grid (0, 0)] end;
+  in aux [] [fn () => try (updateGrid grid m n)] end;
 
 (*******************************)
 
@@ -155,4 +158,8 @@ val mt = transform
              [0,0,0, 0,0,0, 0,0,0],
              [0,0,0, 0,0,0, 0,0,0]];
 
-solve mt 3 3 3;
+fun generate m n = (solve mt m n 1);
+
+solve grid 3 3 3;
+
+generate 3 3;
