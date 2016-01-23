@@ -6,7 +6,7 @@ Guannan Wei <guannan.wei@utah.edu>
 datatype Box = Just of int | Unknown of int list;
 type Grid = (int * int * Box) list list;
 datatype Result = InComplete of (unit -> Result) list
-                | Success of Grid * ((unit -> Result) list);
+                | Success of Grid;
 exception NoSolution;
 
 fun gridToStr g =
@@ -91,13 +91,13 @@ fun next grid =
 
 fun solve grid m n x =
   let fun try grid =
-        case next grid of NONE => Success(grid, [])
+        case next grid of NONE => Success(grid)
                         | SOME(row, col, Unknown p) =>
                             InComplete(map (fn c => fn() => try (updateGrid (gridSet grid (row, col, Just c)) m n)) p)
       fun aux res [] = if len(res) = 0 then raise NoSolution else res
         | aux res (s::ss) = if len(res) = x then res
                             else case s() of InComplete(others) => aux res (others@ss)
-                                           | Success(grid, others) => aux (grid::res) (others@ss)
+                                           | Success(grid) => aux (grid::res) ss
   in aux [] [fn () => try (updateGrid grid m n)] end;
 
 (*******************************)
