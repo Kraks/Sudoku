@@ -69,9 +69,7 @@ fun getConstraints grid m n row col =
   in isolate(List.concat [rowCons, colCons, blkCons]) end;
 
 fun getPossibleNums grid m n row col =
-  let val all = List.tabulate(m*n, fn x => x+1)
-      val con = getConstraints grid m n row col
-  in removeList con all end;
+  removeList (getConstraints grid m n row col) (List.tabulate(m*n, fn x => x+1));
 
 fun updateGrid grid m n = 
   let fun updateLine [] = []
@@ -81,6 +79,28 @@ fun updateGrid grid m n =
       fun update [] = []
         | update (line::grid) = (updateLine line)::(update grid)
   in update grid end;
+
+fun next grid =
+  let fun aux [] m = m
+        | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), NONE) => aux xs (SOME x)
+                                       | ((_, _, Unknown p), SOME(_, _, Unknown p')) => 
+                                           if len(p) < len(p') then aux xs (SOME x)
+                                           else aux xs m
+                                       | (_, _) => aux xs m
+  in aux (List.concat grid) NONE end;
+
+fun solve grid m n x =
+  let fun try grid =
+        case next grid of NONE => Success(grid, [])
+                        | SOME(row, col, Unknown p) =>
+                            InComplete(map (fn c => fn() => try (updateGrid (gridSet grid (row, col, Just c)) m n)) p)
+      fun aux res [] = if len(res) = 0 then raise NoSolution else res
+        | aux res (s::ss) = if len(res) = x then res
+                            else case s() of InComplete(others) => aux res (others@ss)
+                                           | Success(grid, others) => aux (grid::res) (others@ss)
+  in aux [] [fn () => try (updateGrid grid m n)] end;
+
+(*******************************)
 
 fun isValid grid m n = 
   let fun sumOfBox [] = 0
@@ -100,37 +120,27 @@ fun gridWithIndex grid =
   let val grid = withIndex (map withIndex grid)
   in map (fn (row, l) => map (fn (col, x) => (row, col, x)) l) grid end;
 
-fun next grid =
-  let fun aux [] m = m
-        | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), NONE) => aux xs (SOME x)
-                                       | ((_, _, Unknown p), SOME(_, _, Unknown p')) => 
-                                           if len(p) < len(p') then aux xs (SOME x)
-                                           else aux xs m
-                                       | (_, _) => aux xs m
-  in aux (List.concat grid) NONE end;
-
-fun solve grid m n x =
-  let fun try grid =
-        case next grid of NONE => Success(grid, [])
-                        | SOME(row, col, Unknown p) =>
-                            InComplete(map (fn c => fn() => try (updateGrid (gridSet grid (row, col, Just c)) m n)) p)
-
-      fun aux res [] = if len(res) = 0 then raise NoSolution else res
-        | aux res (s::ss) = if len(res) = x then res
-                            else case s() of 
-                                   InComplete(others) => aux res (others@ss)
-                                 | Success(grid, others) => aux (grid::res) (others@ss)
-
-  in aux [] [fn () => try (updateGrid grid m n)] end;
-
-(*******************************)
-
 fun transform g =
   let fun transLine [] = []
         | transLine (0::xs) = (Unknown [])::transLine xs
         | transLine (x::xs) = (Just x)::transLine xs
   in gridWithIndex(map transLine g) end;
 
+val hard = transform
+           [[0,0,0, 0,6,0, 0,8,0],
+            [0,2,0, 0,0,0, 0,0,0],
+            [0,0,1, 0,0,0, 0,0,0],
+
+            [0,7,0, 0,0,0, 1,0,2],
+            [5,0,0, 0,3,0, 0,0,0],
+            [0,0,0, 0,0,0, 4,0,0],
+
+            [0,0,4, 2,0,1, 0,0,0],
+            [3,0,0, 7,0,0, 6,0,0],
+            [0,0,0, 0,0,0, 0,5,0]];
+
+map (print o gridToStr) (solve hard 3 3 1);
+(*
 val grid = transform
             [[3,0,6, 5,0,8, 4,0,0],
              [5,2,0, 0,0,0, 0,0,0],
@@ -143,6 +153,7 @@ val grid = transform
              [1,3,0, 0,0,0, 2,5,0],
              [0,0,0, 0,0,0, 0,7,4],
              [0,0,5, 2,0,6, 3,0,0]];
+map (print o gridToStr) (solve grid 3 3 1);
 
 val mt = transform
             [[0,0,0, 0,0,0, 0,0,0],
@@ -156,9 +167,6 @@ val mt = transform
              [0,0,0, 0,0,0, 0,0,0],
              [0,0,0, 0,0,0, 0,0,0],
              [0,0,0, 0,0,0, 0,0,0]];
-
 fun generate m n = (solve mt m n 1);
-
-map (print o gridToStr) (solve grid 3 3 1);
-
 map (print o gridToStr) (generate 3 3);
+*)
