@@ -126,6 +126,7 @@ fun transform g =
         | transLine (x::xs) = (Just x)::transLine xs
   in gridWithIndex(map transLine g) end;
 
+(*
 val hard = transform
            [[0,0,0, 0,6,0, 0,8,0],
             [0,2,0, 0,0,0, 0,0,0],
@@ -140,7 +141,7 @@ val hard = transform
             [0,0,0, 0,0,0, 0,5,0]];
 
 map (print o gridToStr) (solve hard 3 3 1);
-(*
+*)
 val grid = transform
             [[3,0,6, 5,0,8, 4,0,0],
              [5,2,0, 0,0,0, 0,0,0],
@@ -169,4 +170,3 @@ val mt = transform
              [0,0,0, 0,0,0, 0,0,0]];
 fun generate m n = (solve mt m n 1);
 map (print o gridToStr) (generate 3 3);
-*)

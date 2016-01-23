@@ -1,4 +1,4 @@
-Sudoku Solver in Functional Programming Language
+Sudoku Solver in Functional Languages
 ---
 
 ### Racket
