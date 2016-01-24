@@ -5,7 +5,7 @@ Guannan Wei <guannan.wei@utah.edu>
 
 datatype Box = Just of int | Unknown of int list;
 type Grid = (int * int * Box) list list;
-datatype Result = InComplete of (unit -> Result) list
+datatype Result = InComplete of Grid * (int * int * Box)
                 | Success of Grid;
 exception NoSolution;
 
@@ -82,23 +82,20 @@ fun updateGrid grid m n =
 
 fun next grid =
   let fun aux [] m = m
-        | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), NONE) => aux xs (SOME x)
-                                       | ((_, _, Unknown p), SOME(_, _, Unknown p')) => 
-                                           if len(p) < len(p') then aux xs (SOME x)
+        | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), Success _) => aux xs (InComplete(grid, x))
+                                       | ((_, _, Unknown p), InComplete(grid, (_, _, Unknown p'))) => 
+                                           if len(p) < len(p') then aux xs (InComplete(grid, x))
                                            else aux xs m
                                        | (_, _) => aux xs m
-  in aux (List.concat grid) NONE end;
+  in aux (List.concat grid) (Success grid) end;
 
 fun solve grid m n x =
-  let fun try grid =
-        case next grid of NONE => Success(grid)
-                        | SOME(row, col, Unknown p) =>
-                            InComplete(map (fn c => fn() => try (updateGrid (gridSet grid (row, col, Just c)) m n)) p)
-      fun aux res [] = if len(res) = 0 then raise NoSolution else res
+  let fun aux res [] = if len(res) = 0 then raise NoSolution else res
         | aux res (s::ss) = if len(res) = x then res
-                            else case s() of InComplete(others) => aux res (others@ss)
-                                           | Success(grid) => aux (grid::res) ss
-  in aux [] [fn () => try (updateGrid grid m n)] end;
+                            else case s() of Success(grid) => aux (grid::res) ss
+                                           | InComplete(grid, (row, col, Unknown p)) =>
+                                               aux res ((map (fn c => fn () => next (updateGrid (gridSet grid (row, col, Just c)) m n)) p)@ss)
+  in aux [] [fn () => next (updateGrid grid m n)] end;
 
 (*******************************)
 
