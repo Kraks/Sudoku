@@ -80,10 +80,13 @@ fun updateGrid grid m n =
         | update (line::grid) = (updateLine line)::(update grid)
   in update grid end;
 
+(* Find the Unknown box with the minimum number of possible choices,
+ * If not found, then success.
+ *)
 fun next grid =
   let fun aux [] m = m
         | aux (x::xs) m = case (x, m) of ((_, _, Unknown _), Success _) => aux xs (InComplete(grid, x))
-                                       | ((_, _, Unknown p), InComplete(grid, (_, _, Unknown p'))) => 
+                                       | ((_, _, Unknown p), InComplete(_, (_, _, Unknown p'))) => 
                                            if len(p) < len(p') then aux xs (InComplete(grid, x))
                                            else aux xs m
                                        | (_, _) => aux xs m
