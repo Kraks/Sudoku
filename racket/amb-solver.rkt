@@ -54,7 +54,7 @@
            (for/list ([col (range 0 (* M N) M)])
              (get-block grid M N row col)))))
 
-(define get-used-num (curry filter (λ (x) (not (zero? x)))))
+(define get-used-num (curry filter (λ (x) (not (eq? '_ x)))))
 
 (define (grid-get grid row col) (list-ref (list-ref grid row) col))
 
@@ -70,7 +70,7 @@
   (define (next-col row col)
     (if (zero? (modulo (add1 col) side-length)) 0 (add1 col)))
   (define (get-possible-choices grid row col)
-    (if (not (= 0 (grid-get grid row col))) '()
+    (if (not (eq? '_ (grid-get grid row col))) '()
         (let ([row-cns (get-used-num (list-ref grid row))]
               [col-cns (get-used-num (get-col grid col))]
               [blk-cns (get-used-num (get-block grid M N row col))])
@@ -78,11 +78,11 @@
                  (range 1 (add1 side-length))))))
   (define (gen-constraints grid row col)
     (cond [(end? row col) grid]
-          [(not (= 0 (grid-get grid row col)))
-           (gen-constraints grid (next-row row col) (next-col row col))]
-          [else (gen-constraints 
-                  (grid-set grid row col (amb (get-possible-choices grid row col)))
-                  (next-row row col) (next-col row col))]))
+          [(eq? '_ (grid-get grid row col))
+           (gen-constraints 
+            (grid-set grid row col (amb (get-possible-choices grid row col)))
+            (next-row row col) (next-col row col))]
+          [else (gen-constraints grid (next-row row col) (next-col row col))]))
   
   (let ([g (gen-constraints grid 0 0)])
     (for/list ([line g]) (require (= total (sum line))))
@@ -93,16 +93,14 @@
 ;; Test
 
 (define grid
-  '((3 0 6  5 0 8  4 0 0)
-    (5 2 0  0 0 0  0 0 0)
-    (0 8 7  0 0 0  0 3 1)
-    
-    (0 0 3  0 1 0  0 8 0)
-    (9 0 0  8 6 3  0 0 5)
-    (0 5 0  0 9 0  6 0 0)
-    
-    (1 3 0  0 0 0  2 5 0)
-    (0 0 0  0 0 0  0 7 4)
-    (0 0 5  2 0 6  3 0 0)))
+  '([3 _ 6  5 _ 8  4 _ _]
+    [5 2 _  _ _ _  _ _ _]
+    [_ 8 7  _ _ _  _ 3 1]
+    [_ _ 3  _ 1 _  _ 8 _]
+    [9 _ _  8 6 3  _ _ 5]
+    [_ 5 _  _ 9 _  6 _ _]
+    [1 3 _  _ _ _  2 5 _]
+    [_ _ _  _ _ _  _ 7 4]
+    [_ _ 5  2 _ 6  3 _ _]))
 
 (solve grid 3 3)
